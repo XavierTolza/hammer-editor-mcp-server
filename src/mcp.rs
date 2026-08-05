@@ -2,9 +2,9 @@
 
 use crate::server::{JsonRpcRequest, McpServer};
 use serde_json::{json, Value};
-use std::sync::Mutex;
 use tokio::io::{stdin, stdout};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 pub async fn run_loop(server_url: String) -> anyhow::Result<()> {
@@ -63,7 +63,7 @@ pub async fn run_loop(server_url: String) -> anyhow::Result<()> {
                 match name {
                     Some(n) => {
                         let call_result = {
-                            let mut guard = server.lock().unwrap();
+                            let mut guard = server.lock().await;
                             guard.handle_call(n, &args).await
                         };
                         match call_result {
