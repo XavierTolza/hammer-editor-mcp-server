@@ -102,3 +102,39 @@ Use `hammer_entity_schema(entity_type)` to get the full schema at runtime.
 ## License
 
 MIT
+
+## Claude Desktop Configuration
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "hammer-editor": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm",
+        "-e", "HAMMER_SERVER_URL",
+        "ghcr.io/xaviertolza/hammer-editor-mcp-server:latest"
+      ],
+      "env": {
+        "HAMMER_SERVER_URL": "https://your-hammer-server.example.com"
+      }
+    }
+  }
+}
+```
+
+Or with a local build:
+
+```json
+{
+  "mcpServers": {
+    "hammer-editor": {
+      "command": "/path/to/target/release/hammer-editor-mcp-server",
+      "env": {
+        "HAMMER_SERVER_URL": "https://your-hammer-server.example.com"
+      }
+    }
+  }
+}
+```
