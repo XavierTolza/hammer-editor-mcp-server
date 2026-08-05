@@ -182,19 +182,15 @@ pub struct SceneEntity {
     pub last_edited: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SceneType {
     #[serde(rename = "Scene")]
+    #[default]
     Scene,
     #[serde(rename = "Group")]
     Group,
 }
 
-impl Default for SceneType {
-    fn default() -> Self {
-        SceneType::Scene
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -273,7 +269,7 @@ pub struct ProjectsSyncProbeResponse {
 
 // ── Project Data ──────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectData {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -284,17 +280,6 @@ pub struct ProjectData {
     pub word_count_goal: Option<WordCountGoal>,
     #[serde(default)]
     pub tags: BTreeSet<String>,
-}
-
-impl Default for ProjectData {
-    fn default() -> Self {
-        ProjectData {
-            author_name: None,
-            theme: None,
-            word_count_goal: None,
-            tags: BTreeSet::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
