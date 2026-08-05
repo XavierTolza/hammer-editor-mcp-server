@@ -62,8 +62,11 @@ pub async fn run_loop(server_url: String) -> anyhow::Result<()> {
 
                 match name {
                     Some(n) => {
-                        let mut guard = server.lock().unwrap();
-                        match guard.handle_call(n, &args).await {
+                        let call_result = {
+                            let mut guard = server.lock().unwrap();
+                            guard.handle_call(n, &args).await
+                        };
+                        match call_result {
                             Ok(result) => {
                                 json!({
                                     "jsonrpc": "2.0",

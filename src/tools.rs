@@ -39,7 +39,7 @@ impl McpServer {
             .await
             .map_err(|e| e.to_string())?;
         self.account_sync_id = Some(resp.sync_id.clone());
-        Ok(serde_json::to_value(&resp).map_err(|e| e.to_string())?)
+        serde_json::to_value(&resp).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_end_account_sync(&mut self) -> Result<Value, String> {
@@ -66,7 +66,7 @@ impl McpServer {
             .create_project(uid, sid, name)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(serde_json::to_value(&resp).map_err(|e| e.to_string())?)
+        serde_json::to_value(&resp).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_delete_project(&mut self, args: &Value) -> Result<Value, String> {
@@ -128,7 +128,7 @@ impl McpServer {
                 deleted_ids: resp.deleted_ids.clone(),
             },
         );
-        Ok(serde_json::to_value(&resp).map_err(|e| e.to_string())?)
+        serde_json::to_value(&resp).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_end_project_sync(&mut self, args: &Value) -> Result<Value, String> {
@@ -156,7 +156,7 @@ impl McpServer {
             .await
             .map_err(|e| e.to_string())?;
         match entity {
-            Some(e) => Ok(serde_json::to_value(&e).map_err(|e| e.to_string())?),
+            Some(e) => serde_json::to_value(&e).map_err(|e| e.to_string()),
             None => {
                 Ok(json!({"status":"not_modified","message":"Entity unchanged since last sync"}))
             }
@@ -206,7 +206,7 @@ impl McpServer {
             .await
             .map_err(|e| e.to_string())?;
         match data {
-            Some(d) => Ok(serde_json::to_value(&d).map_err(|e| e.to_string())?),
+            Some(d) => serde_json::to_value(&d).map_err(|e| e.to_string()),
             None => Ok(json!({"status":"empty","data":null,"hash":null})),
         }
     }
@@ -239,7 +239,7 @@ impl McpServer {
             .ideas_sync_state(uid, sid)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(serde_json::to_value(&state).map_err(|e| e.to_string())?)
+        serde_json::to_value(&state).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_download_idea(&self, args: &Value) -> Result<Value, String> {
@@ -251,7 +251,7 @@ impl McpServer {
             .download_idea(uid, iid, sid)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(serde_json::to_value(&idea).map_err(|e| e.to_string())?)
+        serde_json::to_value(&idea).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_upload_idea(&self, args: &Value) -> Result<Value, String> {
@@ -305,7 +305,7 @@ impl McpServer {
             .get_writing_activity(uid, pid)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(serde_json::to_value(&activity).map_err(|e| e.to_string())?)
+        serde_json::to_value(&activity).map_err(|e| e.to_string())
     }
 
     pub(crate) async fn tool_sync_probe(&self, args: &Value) -> Result<Value, String> {
@@ -324,7 +324,7 @@ impl McpServer {
             .sync_probe(uid, projects)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(serde_json::to_value(&resp).map_err(|e| e.to_string())?)
+        serde_json::to_value(&resp).map_err(|e| e.to_string())
     }
 
     pub(crate) fn tool_entity_schema(&self, args: &Value) -> Result<Value, String> {
