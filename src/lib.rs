@@ -51,7 +51,7 @@ mod integration_tests {
     /// Test: entity schemas work.
     #[test]
     fn entity_schemas_are_valid() {
-        let mut srv = server::McpServer::new("http://localhost".into());
+        let srv = server::McpServer::new("http://localhost".into());
         for etype in &[
             "scene",
             "note",

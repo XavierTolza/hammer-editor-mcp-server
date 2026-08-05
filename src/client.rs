@@ -36,10 +36,6 @@ impl HammerClient {
 
     // ── helpers ───────────────────────────────────────────────
 
-    fn protocol_header() -> (&'static str, String) {
-        (HEADER_PROTOCOL_VERSION, PROTOCOL_VERSION.to_string())
-    }
-
     fn auth_header(&self) -> Option<header::HeaderValue> {
         self.auth_token
             .as_ref()
