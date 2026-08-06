@@ -1,0 +1,33 @@
+name: Tag Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag (e.g. 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Create Tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -P '^\d+\.\d+\.\d+$'; then
+            echo "❌ Invalid version: '${{ inputs.version }}'. Must be semver like 0.2.0"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          TAG="v${{ inputs.version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "✅ Tag $TAG created — release workflow will start automatically."
