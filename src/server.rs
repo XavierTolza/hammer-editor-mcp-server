@@ -62,10 +62,44 @@ impl McpServer {
         }
     }
 
+    /// Apply connection settings from CLI arguments.
+    ///
+    /// Priority: an explicit `auth_token` is used directly; otherwise
+    /// `email`/`password` are used to log in and obtain a token. A
+    /// `user_id` may be provided to skip the look-up that login returns.
+    pub async fn configure(&mut self, cfg: &crate::config::CliArgs) -> anyhow::Result<()> {
+        if let Some(token) = &cfg.auth_token {
+            self.client.set_token(token);
+        } else if let (Some(email), Some(password)) = (&cfg.email, &cfg.password) {
+            let install_id = cfg
+                .install_id
+                .clone()
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            let token = self.client.login(email, password, &install_id).await?;
+            self.user_id = Some(token.user_id);
+            self.client.set_token(&token.auth);
+            tracing::info!("Authenticated as user {}", token.user_id);
+        }
+
+        if let Some(uid) = cfg.user_id {
+            self.user_id = Some(uid);
+        }
+
+        if cfg.auth_token.is_none() && cfg.email.is_none() && cfg.user_id.is_none() {
+            tracing::warn!(
+                "No credentials provided. Use --email/--password, --auth-token or --user-id."
+            );
+        }
+        Ok(())
+    }
+
+    /// Whether the server has a user id available for API calls.
+    pub fn is_authenticated(&self) -> bool {
+        self.user_id.is_some()
+    }
+
     pub fn tool_definitions() -> Vec<Value> {
         vec![
-            json!({"name":"hammer_login","description":"Authenticate to the Hammer Editor sync server. Must be called first.","inputSchema":{"type":"object","properties":{"email":{"type":"string","description":"Account email"},"password":{"type":"string","description":"Account password"}},"required":["email","password"]}}),
-            json!({"name":"hammer_set_user_id","description":"Set the user ID for API calls.","inputSchema":{"type":"object","properties":{"user_id":{"type":"integer"}},"required":["user_id"]}}),
             json!({"name":"hammer_begin_account_sync","description":"Begin account-level sync. Returns syncId, projects list, deleted projects, ideas state hash.","inputSchema":{"type":"object","properties":{},"required":[]}}),
             json!({"name":"hammer_end_account_sync","description":"End the current account-level sync session.","inputSchema":{"type":"object","properties":{},"required":[]}}),
             json!({"name":"hammer_create_project","description":"Create a new project. Requires active account sync.","inputSchema":{"type":"object","properties":{"project_name":{"type":"string"}},"required":["project_name"]}}),
@@ -90,8 +124,6 @@ impl McpServer {
 
     pub async fn handle_call(&mut self, name: &str, args: &Value) -> Result<Value, String> {
         match name {
-            "hammer_login" => self.tool_login(args).await,
-            "hammer_set_user_id" => self.tool_set_user_id(args),
             "hammer_begin_account_sync" => self.tool_begin_account_sync().await,
             "hammer_end_account_sync" => self.tool_end_account_sync().await,
             "hammer_create_project" => self.tool_create_project(args).await,
@@ -117,7 +149,7 @@ impl McpServer {
 
     pub(crate) fn require_user(&self) -> Result<i64, String> {
         self.user_id
-            .ok_or_else(|| "Not authenticated. Call hammer_login first.".into())
+            .ok_or_else(|| "Not authenticated. Provide --email/--password, --auth-token, or --user-id on startup.".into())
     }
     pub(crate) fn require_account_sync(&self) -> Result<&str, String> {
         self.account_sync_id
