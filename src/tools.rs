@@ -36,10 +36,7 @@ impl McpServer {
 
         // End any stale server-side session before starting a new one
         if let Some(sid) = self.account_sync_id.take() {
-            let _ = self
-                .client
-                .end_projects_sync(uid, &sid)
-                .await;
+            let _ = self.client.end_projects_sync(uid, &sid).await;
         }
 
         // End any active project syncs first (server doesn't allow concurrent sessions)
@@ -48,7 +45,13 @@ impl McpServer {
             if let Some(session) = self.project_sessions.remove(pid) {
                 let _ = self
                     .client
-                    .end_project_sync(uid, pid, &session.sync_id, session.last_sync.as_deref(), Some(session.last_id))
+                    .end_project_sync(
+                        uid,
+                        pid,
+                        &session.sync_id,
+                        session.last_sync.as_deref(),
+                        Some(session.last_id),
+                    )
                     .await;
             }
         }
@@ -119,10 +122,7 @@ impl McpServer {
 
         // End account sync first (server doesn't allow concurrent sessions)
         if let Some(sid) = self.account_sync_id.take() {
-            let _ = self
-                .client
-                .end_projects_sync(uid, &sid)
-                .await;
+            let _ = self.client.end_projects_sync(uid, &sid).await;
         }
 
         let client_state = if let Some(hashes) = args["entity_hashes"].as_array() {
