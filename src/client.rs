@@ -68,15 +68,17 @@ impl HammerClient {
     // ── Auth ──────────────────────────────────────────────────
 
     pub async fn login(&self, email: &str, password: &str, install_id: &str) -> Result<Token> {
-        let body = LoginRequest {
-            email,
-            password,
-            install_id,
-        };
+        let params = [
+            ("email", email),
+            ("password", password),
+            ("installId", install_id),
+        ];
         let resp = self
             .http
-            .post(format!("{}/api/accounts/login", self.server_url))
-            .json(&body)
+            .post(format!("{}/api/account/login/", self.server_url))
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(HEADER_PROTOCOL_VERSION, PROTOCOL_VERSION.to_string())
+            .form(&params)
             .send()
             .await?;
 
@@ -138,27 +140,28 @@ impl HammerClient {
         Ok(Self::check_response(resp).await?.json().await?)
     }
 
-    /// POST /api/projects/{userId}/delete
+    /// POST /api/projects/{userId}/delete?projectId={projectId}
     pub async fn delete_project(
         &self,
         user_id: i64,
         sync_id: &str,
         project_id: &str,
     ) -> Result<()> {
-        let url = self.api_url(&format!("/projects/{}/{}/delete", user_id, project_id));
+        let url = self.api_url(&format!("/projects/{}/delete", user_id));
         let resp = self
             .http
             .post(&url)
             .header(header::AUTHORIZATION, self.auth_header().unwrap())
             .header(HEADER_PROTOCOL_VERSION, PROTOCOL_VERSION.to_string())
             .header(HEADER_SYNC_ID, sync_id)
+            .query(&[("projectId", project_id)])
             .send()
             .await?;
         Self::check_response(resp).await?;
         Ok(())
     }
 
-    /// POST /api/projects/{userId}/rename
+    /// POST /api/projects/{userId}/rename?projectId={projectId}&projectName={newName}
     pub async fn rename_project(
         &self,
         user_id: i64,
@@ -166,14 +169,14 @@ impl HammerClient {
         project_id: &str,
         new_name: &str,
     ) -> Result<()> {
-        let url = self.api_url(&format!("/projects/{}/{}/rename", user_id, project_id));
+        let url = self.api_url(&format!("/projects/{}/rename", user_id));
         let resp = self
             .http
             .post(&url)
             .header(header::AUTHORIZATION, self.auth_header().unwrap())
             .header(HEADER_PROTOCOL_VERSION, PROTOCOL_VERSION.to_string())
             .header(HEADER_SYNC_ID, sync_id)
-            .query(&[("projectName", new_name)])
+            .query(&[("projectId", project_id), ("projectName", new_name)])
             .send()
             .await?;
         Self::check_response(resp).await?;
@@ -447,7 +450,7 @@ impl HammerClient {
         &self,
         user_id: i64,
         project_id: &str,
-    ) -> Result<std::collections::HashMap<String, DeviceLog>> {
+    ) -> Result<WritingActivityResponse> {
         let url = self.api_url(&format!(
             "/project/{}/{}/writing_activity",
             user_id, project_id

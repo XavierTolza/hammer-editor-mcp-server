@@ -33,6 +33,26 @@ impl McpServer {
 
     pub(crate) async fn tool_begin_account_sync(&mut self) -> Result<Value, String> {
         let uid = self.require_user()?;
+
+        // End any stale server-side session before starting a new one
+        if let Some(sid) = self.account_sync_id.take() {
+            let _ = self
+                .client
+                .end_projects_sync(uid, &sid)
+                .await;
+        }
+
+        // End any active project syncs first (server doesn't allow concurrent sessions)
+        let pids: Vec<String> = self.project_sessions.keys().cloned().collect();
+        for pid in &pids {
+            if let Some(session) = self.project_sessions.remove(pid) {
+                let _ = self
+                    .client
+                    .end_project_sync(uid, pid, &session.sync_id, session.last_sync.as_deref(), Some(session.last_id))
+                    .await;
+            }
+        }
+
         let resp = self
             .client
             .begin_projects_sync(uid)
@@ -96,6 +116,15 @@ impl McpServer {
     pub(crate) async fn tool_begin_project_sync(&mut self, args: &Value) -> Result<Value, String> {
         let uid = self.require_user()?;
         let pid = args["project_id"].as_str().ok_or("project_id required")?;
+
+        // End account sync first (server doesn't allow concurrent sessions)
+        if let Some(sid) = self.account_sync_id.take() {
+            let _ = self
+                .client
+                .end_projects_sync(uid, &sid)
+                .await;
+        }
+
         let client_state = if let Some(hashes) = args["entity_hashes"].as_array() {
             let entities: Vec<EntityHash> = hashes
                 .iter()
