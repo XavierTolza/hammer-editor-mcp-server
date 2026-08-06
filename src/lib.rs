@@ -3,11 +3,14 @@
 //! Re-exports the core modules for use by both the binary and integration tests.
 
 pub mod client;
+pub mod config;
 pub mod models;
 pub mod server;
 pub mod tools;
 
 pub mod mcp;
+
+pub use config::CliArgs;
 
 pub fn init_logging() {
     let _ = tracing_subscriber::fmt()
@@ -29,12 +32,13 @@ mod integration_tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    /// Test: MCP `tools/list` returns all expected tool definitions.
+    /// Test: MCP `tools/list` returns all expected tool definitions (no auth tools).
     #[test]
     fn tools_list_returns_all_tools() {
         let tools = server::McpServer::tool_definitions();
         let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
-        assert!(tool_names.contains(&"hammer_login"));
+        assert!(!tool_names.contains(&"hammer_login"));
+        assert!(!tool_names.contains(&"hammer_set_user_id"));
         assert!(tool_names.contains(&"hammer_begin_account_sync"));
         assert!(tool_names.contains(&"hammer_begin_project_sync"));
         assert!(tool_names.contains(&"hammer_download_entity"));
@@ -43,7 +47,7 @@ mod integration_tests {
         assert!(tool_names.contains(&"hammer_get_ideas_state"));
         assert!(tool_names.contains(&"hammer_get_writing_activity"));
         assert!(tool_names.contains(&"hammer_entity_schema"));
-        assert_eq!(tools.len(), 21);
+        assert_eq!(tools.len(), 19);
     }
 
     /// Test: entity schemas work.
@@ -66,9 +70,9 @@ mod integration_tests {
             .is_err());
     }
 
-    /// Test: login fails with bad credentials.
+    /// Test: configure rejects bad credentials.
     #[tokio::test]
-    async fn login_rejects_bad_credentials() {
+    async fn configure_rejects_bad_credentials() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/accounts/login"))
@@ -77,15 +81,21 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        let r = srv
-            .tool_login(&json!({"email":"b@t.com","password":"w"}))
-            .await;
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("b@t.com".into()),
+            password: Some("w".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        let r = srv.configure(&args).await;
         assert!(r.is_err());
     }
 
-    /// Test: login succeeds.
+    /// Test: configure succeeds with valid credentials.
     #[tokio::test]
-    async fn login_succeeds() {
+    async fn configure_succeeds_with_credentials() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/accounts/login"))
@@ -97,23 +107,53 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        let r = srv
-            .tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
-        assert!(r.to_string().contains("42"));
-        assert!(r.to_string().contains("tok"));
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
+        assert_eq!(srv.user_id, Some(42));
+        assert!(srv.client.has_token());
     }
 
-    /// Test: set_user_id.
-    #[test]
-    fn set_user_id_works() {
+    /// Test: configure with auth token directly.
+    #[tokio::test]
+    async fn configure_with_auth_token() {
         let mut srv = server::McpServer::new("http://localhost".into());
-        let r = srv.tool_set_user_id(&json!({"user_id": 99})).unwrap();
-        assert!(r.to_string().contains("99"));
+        let args = crate::CliArgs {
+            server_url: "http://localhost".into(),
+            email: None,
+            password: None,
+            install_id: None,
+            user_id: Some(99),
+            auth_token: Some("mytoken".into()),
+        };
+        srv.configure(&args).await.unwrap();
+        assert_eq!(srv.user_id, Some(99));
+        assert!(srv.client.has_token());
     }
 
-    /// Test: begin_account_sync works.
+    /// Test: configure with user_id only.
+    #[tokio::test]
+    async fn configure_with_user_id_only() {
+        let mut srv = server::McpServer::new("http://localhost".into());
+        let args = crate::CliArgs {
+            server_url: "http://localhost".into(),
+            email: None,
+            password: None,
+            install_id: None,
+            user_id: Some(77),
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
+        assert_eq!(srv.user_id, Some(77));
+    }
+
+    /// Test: begin_account_sync works (pre-configured client).
     #[tokio::test]
     async fn begin_account_sync_works() {
         let mock = MockServer::start().await;
@@ -134,9 +174,15 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         let r = srv.tool_begin_account_sync().await.unwrap();
         assert!(r.to_string().contains("s1"));
         assert!(r.to_string().contains("N"));
@@ -172,9 +218,15 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         srv.tool_begin_account_sync().await.unwrap();
         let r = srv
             .tool_create_project(&json!({"project_name":"NS"}))
@@ -200,9 +252,15 @@ mod integration_tests {
             .mount(&mock).await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         let r = srv
             .tool_begin_project_sync(&json!({"project_id":"p1"}))
             .await
@@ -233,9 +291,15 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         srv.tool_begin_project_sync(&json!({"project_id":"p1"}))
             .await
             .unwrap();
@@ -268,9 +332,15 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         srv.tool_begin_project_sync(&json!({"project_id":"p1"}))
             .await
             .unwrap();
@@ -306,9 +376,15 @@ mod integration_tests {
             .await;
 
         let mut srv = server::McpServer::new(mock.uri());
-        srv.tool_login(&json!({"email":"u@t.com","password":"p"}))
-            .await
-            .unwrap();
+        let args = crate::CliArgs {
+            server_url: mock.uri(),
+            email: Some("u@t.com".into()),
+            password: Some("p".into()),
+            install_id: None,
+            user_id: None,
+            auth_token: None,
+        };
+        srv.configure(&args).await.unwrap();
         let r = srv.tool_create_project(&json!({"project_name":"T"})).await;
         assert!(r.is_err());
     }

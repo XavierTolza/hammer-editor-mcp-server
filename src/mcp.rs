@@ -7,8 +7,10 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
-pub async fn run_loop(server_url: String) -> anyhow::Result<()> {
-    let server = Mutex::new(McpServer::new(server_url));
+pub async fn run_loop(args: crate::config::CliArgs) -> anyhow::Result<()> {
+    let mut server = McpServer::new(args.server_url.clone());
+    server.configure(&args).await?;
+    let server = Mutex::new(server);
     let stdin = BufReader::new(stdin());
     let mut lines = stdin.lines();
     let mut stdout = stdout();

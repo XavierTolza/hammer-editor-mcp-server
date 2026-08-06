@@ -4,33 +4,8 @@ use super::server::McpServer;
 use crate::models::*;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
-use uuid::Uuid;
 
 impl McpServer {
-    pub(crate) async fn tool_login(&mut self, args: &Value) -> Result<Value, String> {
-        let email = args["email"].as_str().ok_or("email required")?;
-        let password = args["password"].as_str().ok_or("password required")?;
-        let install_id = Uuid::new_v4().to_string();
-        let token = self
-            .client
-            .login(email, password, &install_id)
-            .await
-            .map_err(|e| format!("Login failed: {}", e))?;
-        self.user_id = Some(token.user_id);
-        self.client.set_token(&token.auth);
-        Ok(
-            json!({"success":true,"user_id":token.user_id,"auth_token":token.auth,"refresh_token":token.refresh}),
-        )
-    }
-
-    pub(crate) fn tool_set_user_id(&mut self, args: &Value) -> Result<Value, String> {
-        let uid = args["user_id"]
-            .as_i64()
-            .ok_or("user_id (integer) required")?;
-        self.user_id = Some(uid);
-        Ok(json!({"success":true,"user_id":uid}))
-    }
-
     pub(crate) async fn tool_begin_account_sync(&mut self) -> Result<Value, String> {
         let uid = self.require_user()?;
         let resp = self
