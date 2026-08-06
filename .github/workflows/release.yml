@@ -3,14 +3,49 @@ name: Release
 on:
   push:
     tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag (e.g. 0.2.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+env:
+  # Tag name: from tag push (github.ref_name) or from manual input (v + version)
+  RELEASE_TAG: ${{ github.ref_name == '' && format('v{0}', inputs.version) || github.ref_name }}
+
 jobs:
+  # ── Create Tag (manual only) ────────────────────────────────────
+  tag:
+    name: Create Tag
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: v${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -P '^\d+\.\d+\.\d+$'; then
+            echo "❌ Invalid version: '${{ inputs.version }}'. Must be semver like 0.2.0"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          TAG="v${{ inputs.version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "✅ Tag $TAG created"
+
   # ── Build Matrix ────────────────────────────────────────────────
   build:
     name: Build ${{ matrix.target }}
+    needs: tag
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +63,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.tag || github.ref_name }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -49,7 +86,8 @@ jobs:
       - name: Prepare asset
         shell: bash
         run: |
-          ASSET="hammer-editor-mcp-server-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.suffix }}"
+          TAG="${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.tag || github.ref_name }}"
+          ASSET="hammer-editor-mcp-server-${TAG}-${{ matrix.target }}${{ matrix.suffix }}"
           cp "target/${{ matrix.target }}/release/hammer-editor-mcp-server${{ matrix.suffix }}" "$ASSET"
           echo "ASSET=$ASSET" >> "$GITHUB_ENV"
 
@@ -57,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: hammer-editor-mcp-server-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.suffix }}
+          path: hammer-editor-mcp-server-*-${{ matrix.target }}${{ matrix.suffix }}
 
   # ── Create Release ──────────────────────────────────────────────
   release:
@@ -66,6 +104,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.tag || github.ref_name }}
 
       - name: Download all assets
         uses: actions/download-artifact@v4
@@ -86,7 +126,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.tag || github.ref_name }}
+          name: ${{ github.event_name == 'workflow_dispatch' && needs.tag.outputs.tag || github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
