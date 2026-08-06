@@ -71,7 +71,7 @@ mod integration_tests {
     async fn login_rejects_bad_credentials() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(ResponseTemplate::new(401).set_body_json(json!({"error":"Invalid"})))
             .mount(&mock)
             .await;
@@ -88,7 +88,7 @@ mod integration_tests {
     async fn login_succeeds() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":42,"auth":"tok","refresh":"ref"})),
@@ -118,7 +118,7 @@ mod integration_tests {
     async fn begin_account_sync_works() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),
@@ -147,7 +147,7 @@ mod integration_tests {
     async fn create_project_works() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),
@@ -188,7 +188,7 @@ mod integration_tests {
     async fn begin_project_sync_works() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),
@@ -216,7 +216,7 @@ mod integration_tests {
     async fn download_entity_not_modified() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),
@@ -251,7 +251,7 @@ mod integration_tests {
     async fn end_project_sync_works() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),
@@ -297,7 +297,7 @@ mod integration_tests {
     async fn missing_sync_session_fails() {
         let mock = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/api/accounts/login"))
+            .and(path("/api/account/login/"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"userId":1,"auth":"tok","refresh":"ref"})),

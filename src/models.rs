@@ -118,15 +118,15 @@ impl std::fmt::Display for EntityType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ApiProjectEntity {
-    #[serde(rename = "scene")]
+    #[serde(rename = "SCENE")]
     Scene(SceneEntity),
-    #[serde(rename = "note")]
+    #[serde(rename = "NOTE")]
     Note(NoteEntity),
-    #[serde(rename = "timeline_event")]
+    #[serde(rename = "TIMELINE_EVENT")]
     TimelineEvent(TimelineEventEntity),
-    #[serde(rename = "encyclopedia_entry")]
+    #[serde(rename = "ENCYCLOPEDIA_ENTRY")]
     EncyclopediaEntry(EncyclopediaEntryEntity),
-    #[serde(rename = "scene_draft")]
+    #[serde(rename = "SCENE_DRAFT")]
     SceneDraft(SceneDraftEntity),
 }
 
@@ -379,8 +379,7 @@ pub struct IdeaConflictDto {
 #[serde(rename_all = "camelCase")]
 pub struct WritingSession {
     pub started_at: DateTime<Utc>,
-    #[serde(default)]
-    pub ended_at: Option<DateTime<Utc>>,
+    pub ended_at: DateTime<Utc>,
     #[serde(default)]
     pub words_written: i64,
     #[serde(default)]
@@ -390,7 +389,15 @@ pub struct WritingSession {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceLog {
+    pub device_label: String,
+    #[serde(default)]
     pub sessions: Vec<WritingSession>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WritingActivityResponse {
+    pub devices: std::collections::HashMap<String, DeviceLog>,
 }
 
 // ── Auth ──────────────────────────────────────────────────────
@@ -402,12 +409,4 @@ pub struct Token {
     pub user_id: i64,
     pub auth: String,
     pub refresh: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LoginRequest<'a> {
-    pub email: &'a str,
-    pub password: &'a str,
-    #[serde(rename = "installId")]
-    pub install_id: &'a str,
 }
