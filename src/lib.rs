@@ -9,7 +9,6 @@ pub mod tools;
 
 pub mod mcp;
 
-
 pub fn init_logging() {
     let _ = tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
